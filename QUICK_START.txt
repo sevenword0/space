@@ -1,0 +1,142 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║     🎨 Depth Estimation Viewer - QUICK START GUIDE 🎨       ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🚀 EASIEST WAY: Double-Click to Start!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────┐
+│  🪟 Windows Users                                           │
+└─────────────────────────────────────────────────────────────┘
+
+   ➤  Double-click: start.bat
+
+   Server starts automatically and browser opens!
+
+   💡 Tip: Create a desktop shortcut for easier access!
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🍎 macOS Users                                             │
+└─────────────────────────────────────────────────────────────┘
+
+   ⚠️ First time only (run in Terminal):
+
+      chmod +x start.command start.sh
+
+   ➤  Then double-click: start.command
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🐧 Linux Users                                             │
+└─────────────────────────────────────────────────────────────┘
+
+   ⚠️ First time only (run in Terminal):
+
+      chmod +x start.sh
+
+   ➤  Then:
+      - Terminal: ./start.sh
+      - Or double-click start.sh in file manager
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📋 What You'll See
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Success screen:
+
+   ========================================
+    Depth Estimation Viewer Running...
+   ========================================
+
+   [1/3] Starting HTTP server...
+   Server URL: http://localhost:8000
+
+   [2/3] Opening browser...
+
+   [3/3] Complete!
+
+   Browser opened with application.
+
+   [IMPORTANT] Close this window to stop server.
+
+   Server running... (Press Ctrl+C to quit)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🎮 How to Use
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   1. 📷 Upload Image
+      • Camera: Capture from webcam
+      • File: Choose local image
+
+   2. ⏳ Wait for Depth Estimation
+      • AI processes automatically (5-10 sec)
+      • Shows rainbow gradient when done
+
+   3. 🎨 Adjust Settings
+      • Hue speed: Color rotation speed
+      • Gradient density: Color spacing
+      • 5 colors: Customize each step
+
+   4. 🎭 Masking (Optional)
+      • Toggle ON/OFF
+      • Show/hide specific depth ranges
+      • Invert button for reverse masking
+
+   5. ▶️ Animation
+      • Play: Start hue rotation
+      • Pause: Stop animation
+
+   6. 💾 Save
+      • Save current: Store with settings
+      • Load from library later
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ❓ Troubleshooting
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Q: "Python not installed" error
+   A: Install Python from:
+      → https://www.python.org/downloads/
+      Check "Add Python to PATH" during install!
+
+   Q: Browser doesn't open automatically
+   A: Manually open in browser:
+      → http://localhost:8000/depth-estimation-viewer.html
+
+   Q: 401 error
+   A: HuggingFace rate limit. Wait a few minutes or
+      see README.md for "Local Model Setup"
+
+   Q: Camera doesn't work
+   A: Camera only works on HTTPS or localhost
+      (Auto-start scripts use localhost)
+
+   Q: How to stop?
+   A: Close terminal/command window or press Ctrl+C
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📚 More Info
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   📖 README.md: Complete guide & documentation
+   🌐 LAUNCHER.html: Web-based start guide (nice UI)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🎉 Enjoy creating beautiful depth visualizations! 🎉
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Version: 2.0.0 (Auto-start Support)
+Last Updated: 2025-11-06

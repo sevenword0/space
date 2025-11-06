@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depth Estimation Viewer - 시작 가이드</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .warning h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .warning p {
+            color: #856404;
+            line-height: 1.6;
+        }
+
+        .steps {
+            margin-bottom: 30px;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .step h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .code {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 5px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .button.secondary {
+            background: #6c757d;
+        }
+
+        .button.secondary:hover {
+            background: #5a6268;
+        }
+
+        .os-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .os-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .os-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .os-content {
+            display: none;
+        }
+
+        .os-content.active {
+            display: block;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .success-box h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .success-box p {
+            color: #155724;
+        }
+
+        .icon {
+            font-size: 24px;
+        }
+
+        .download-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e7f3ff;
+            border-radius: 10px;
+            border: 2px solid #2196F3;
+        }
+
+        .download-section h3 {
+            color: #1976D2;
+            margin-bottom: 15px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Depth Estimation Viewer</h1>
+        <p class="subtitle">RGB Depth Estimation with Gradient Masking</p>
+
+        <div class="warning">
+            <h3>
+                <span class="icon">⚠️</span>
+                중요: 실행 방법
+            </h3>
+            <p>
+                이 애플리케이션은 보안상의 이유로 <strong>HTTP 서버</strong>에서 실행되어야 합니다.
+                아래의 간단한 방법으로 자동 실행할 수 있습니다!
+            </p>
+        </div>
+
+        <div class="steps">
+            <h2 style="margin-bottom: 20px; color: #333;">🚀 빠른 시작 (3가지 방법)</h2>
+
+            <!-- OS Tabs -->
+            <div class="os-tabs">
+                <button class="os-tab active" onclick="showOS('windows')">
+                    🪟 Windows
+                </button>
+                <button class="os-tab" onclick="showOS('mac')">
+                    🍎 macOS
+                </button>
+                <button class="os-tab" onclick="showOS('linux')">
+                    🐧 Linux
+                </button>
+            </div>
+
+            <!-- Windows -->
+            <div class="os-content active" id="windows">
+                <div class="step">
+                    <h3>
+                        <span class="step-number">1</span>
+                        start.bat 더블클릭
+                    </h3>
+                    <p>
+                        <strong>start.bat</strong> 파일을 더블클릭하면 자동으로:
+                    </p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>✅ Python HTTP 서버 시작</li>
+                        <li>✅ 브라우저 자동 실행</li>
+                        <li>✅ 애플리케이션 열기</li>
+                    </ul>
+                    <p style="margin-top: 15px; color: #666;">
+                        💡 <strong>팁</strong>: start.bat을 바탕화면에 바로가기로 만들면 더 편리합니다!
+                    </p>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-number">2</span>
+                        수동 실행 (선택사항)
+                    </h3>
+                    <p>명령 프롬프트(cmd)에서 실행:</p>
+                    <div class="code">
+cd "파일이 있는 폴더 경로"
+python -m http.server 8000</div>
+                    <p style="margin-top: 10px;">
+                        그런 다음 브라우저에서
+                        <strong style="color: #667eea;">http://localhost:8000/depth-estimation-viewer.html</strong>
+                        열기
+                    </p>
+                </div>
+            </div>
+
+            <!-- macOS -->
+            <div class="os-content" id="mac">
+                <div class="step">
+                    <h3>
+                        <span class="step-number">1</span>
+                        start.command 더블클릭
+                    </h3>
+                    <p>
+                        <strong>start.command</strong> 파일을 더블클릭하면 터미널에서 자동 실행됩니다.
+                    </p>
+                    <p style="margin-top: 15px; color: #e74c3c;">
+                        ⚠️ <strong>처음 실행 시</strong>: 실행 권한 설정이 필요합니다
+                    </p>
+                    <div class="code">
+# 터미널에서 한 번만 실행:
+chmod +x start.command
+chmod +x start.sh</div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-number">2</span>
+                        또는 start.sh 실행
+                    </h3>
+                    <p>터미널에서 실행:</p>
+                    <div class="code">
+cd "파일이 있는 폴더"
+bash start.sh</div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-number">3</span>
+                        수동 실행 (선택사항)
+                    </h3>
+                    <div class="code">
+cd "파일이 있는 폴더"
+python3 -m http.server 8000</div>
+                    <p style="margin-top: 10px;">
+                        브라우저:
+                        <strong style="color: #667eea;">http://localhost:8000/depth-estimation-viewer.html</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Linux -->
+            <div class="os-content" id="linux">
+                <div class="step">
+                    <h3>
+                        <span class="step-number">1</span>
+                        start.sh 실행
+                    </h3>
+                    <p style="color: #e74c3c; margin-bottom: 10px;">
+                        ⚠️ <strong>처음 실행 시</strong>: 실행 권한 부여
+                    </p>
+                    <div class="code">
+chmod +x start.sh</div>
+                    <p style="margin-top: 15px;">그런 다음 실행:</p>
+                    <div class="code">
+./start.sh</div>
+                    <p style="margin-top: 10px;">
+                        또는 더블클릭 (파일 관리자에서)
+                    </p>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-number">2</span>
+                        수동 실행 (선택사항)
+                    </h3>
+                    <div class="code">
+cd "파일이 있는 폴더"
+python3 -m http.server 8000</div>
+                    <p style="margin-top: 10px;">
+                        브라우저:
+                        <strong style="color: #667eea;">http://localhost:8000/depth-estimation-viewer.html</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="download-section">
+            <h3>📦 실행 파일 목록</h3>
+            <div class="file-item">
+                <div class="file-info">
+                    <span>🪟</span>
+                    <div>
+                        <strong>start.bat</strong>
+                        <br>
+                        <small style="color: #666;">Windows 자동 실행 스크립트</small>
+                    </div>
+                </div>
+                <span style="color: #28a745; font-weight: bold;">준비 완료</span>
+            </div>
+            <div class="file-item">
+                <div class="file-info">
+                    <span>🍎</span>
+                    <div>
+                        <strong>start.command</strong> / <strong>start.sh</strong>
+                        <br>
+                        <small style="color: #666;">macOS 자동 실행 스크립트</small>
+                    </div>
+                </div>
+                <span style="color: #28a745; font-weight: bold;">준비 완료</span>
+            </div>
+            <div class="file-item">
+                <div class="file-info">
+                    <span>🐧</span>
+                    <div>
+                        <strong>start.sh</strong>
+                        <br>
+                        <small style="color: #666;">Linux 자동 실행 스크립트</small>
+                    </div>
+                </div>
+                <span style="color: #28a745; font-weight: bold;">준비 완료</span>
+            </div>
+        </div>
+
+        <div class="success-box">
+            <h3>✅ 실행 후 확인사항</h3>
+            <p>
+                브라우저가 자동으로 열리면 성공입니다!<br>
+                서버를 종료하려면 터미널/명령 프롬프트 창을 닫거나 <strong>Ctrl+C</strong>를 누르세요.
+            </p>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center; padding-top: 20px; border-top: 2px solid #e9ecef;">
+            <p style="color: #666; margin-bottom: 15px;">
+                문제가 발생하면 <strong>README.md</strong> 파일을 확인하세요
+            </p>
+            <a href="README.md" class="button secondary">📖 상세 가이드 보기</a>
+        </div>
+    </div>
+
+    <script>
+        function showOS(os) {
+            // Hide all tabs and content
+            document.querySelectorAll('.os-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.os-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Show selected tab and content
+            event.target.classList.add('active');
+            document.getElementById(os).classList.add('active');
+        }
+
+        // Detect OS and show appropriate tab
+        window.addEventListener('DOMContentLoaded', () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            let os = 'windows';
+
+            if (userAgent.indexOf('mac') !== -1) {
+                os = 'mac';
+            } else if (userAgent.indexOf('linux') !== -1 || userAgent.indexOf('x11') !== -1) {
+                os = 'linux';
+            }
+
+            // Click the appropriate tab
+            const tabs = document.querySelectorAll('.os-tab');
+            tabs.forEach(tab => {
+                if (tab.textContent.toLowerCase().includes(os === 'mac' ? 'macos' : os)) {
+                    showOS(os);
+                    tab.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
