@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Depth Estimation Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100vw;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            min-height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .canvas-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+        }
+
+        #displayCanvas {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+
+        .canvas-container.fullscreen #displayCanvas {
+            max-height: 100vh;
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 10;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            font-size: 16px;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            padding: 20px;
+            background: #2a2a2a;
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .control-label {
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .control-value {
+            margin-left: 10px;
+            min-width: 50px;
+            text-align: right;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        input[type="range"] {
+            flex: 2;
+            margin: 0 10px;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #555;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
+        input[type="color"] {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .gradient-colors {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .color-picker-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .color-picker-item label {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        /* Buttons */
+        .button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .button.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .button.secondary {
+            background: #444;
+            color: white;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .toggle-btn {
+            background: #555;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-group .button {
+            flex: 1;
+            margin: 0;
+        }
+
+        /* Library */
+        .library-section {
+            padding: 20px;
+            background: #2a2a2a;
+        }
+
+        .library-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .library-item {
+            position: relative;
+            aspect-ratio: 1;
+            background: #333;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .library-item:hover {
+            transform: scale(1.05);
+        }
+
+        .library-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .library-item .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,0,0,0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .library-item:hover .delete-btn {
+            display: block;
+        }
+
+        /* Hidden elements */
+        #videoElement, #sourceCanvas, #depthCanvas {
+            display: none;
+        }
+
+        /* Status indicator */
+        .status-bar {
+            padding: 10px 20px;
+            background: #222;
+            text-align: center;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .status-bar.ready {
+            background: #2d5016;
+            color: #90ee90;
+        }
+
+        /* Masking controls */
+        .masking-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #555;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🎨 Depth Estimation Viewer</h1>
+        <p>RGB Depth with Gradient Masking</p>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+        모델 로딩 중...
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="displayCanvas"></canvas>
+        <button class="fullscreen-btn" id="fullscreenBtn">⛶</button>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+            <div class="loading-text">처리 중...</div>
+        </div>
+    </div>
+
+    <!-- Hidden video and canvas elements -->
+    <video id="videoElement" playsinline></video>
+    <canvas id="sourceCanvas"></canvas>
+    <canvas id="depthCanvas"></canvas>
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+        <!-- Image Capture Section -->
+        <div class="control-section">
+            <h3>📷 이미지 캡처</h3>
+            <div class="button-group">
+                <button class="button primary" id="cameraBtn">카메라</button>
+                <button class="button secondary" id="fileBtn">파일</button>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+
+        <!-- Gradient Controls -->
+        <div class="control-section">
+            <h3>🌈 그라디언트 설정</h3>
+
+            <div class="control-row">
+                <span class="control-label">⚡ Hue 회전 속도</span>
+                <input type="range" id="hueSpeedSlider" min="-30" max="30" value="5" step="1">
+                <span class="control-value" id="hueSpeedValue">5</span>
+            </div>
+
+            <div class="control-row">
+                <span class="control-label">🌈 그라디언트 밀도</span>
+                <input type="range" id="densitySlider" min="-30" max="30" value="0" step="1">
+                <span class="control-value" id="densityValue">0</span>
+            </div>
+
+            <div class="control-label" style="margin-top: 15px; margin-bottom: 10px;">🎨 그라디언트 컬러 (5단계)</div>
+            <div class="gradient-colors">
+                <div class="color-picker-item">
+                    <input type="color" id="color1" value="#000080">
+                    <label>1단계</label>
+                </div>
+                <div class="color-picker-item">
+                    <input type="color" id="color2" value="#0000ff">
+                    <label>2단계</label>
+                </div>
+                <div class="color-picker-item">
+                    <input type="color" id="color3" value="#00ff00">
+                    <label>3단계</label>
+                </div>
+                <div class="color-picker-item">
+                    <input type="color" id="color4" value="#ffff00">
+                    <label>4단계</label>
+                </div>
+                <div class="color-picker-item">
+                    <input type="color" id="color5" value="#ff0000">
+                    <label>5단계</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Masking Controls -->
+        <div class="control-section">
+            <h3>🎭 Depth 마스킹</h3>
+
+            <div class="masking-toggle">
+                <span class="control-label">마스킹 활성화</span>
+                <label class="switch">
+                    <input type="checkbox" id="maskingToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="control-row">
+                <span class="control-label">시작 포인트</span>
+                <input type="range" id="maskStartSlider" min="0" max="255" value="0" step="1">
+                <span class="control-value" id="maskStartValue">0</span>
+            </div>
+
+            <div class="control-row">
+                <span class="control-label">영역 범위</span>
+                <input type="range" id="maskRangeSlider" min="0" max="255" value="128" step="1">
+                <span class="control-value" id="maskRangeValue">128</span>
+            </div>
+
+            <div class="control-row">
+                <span class="control-label">경계 선명도</span>
+                <input type="range" id="maskEdgeSlider" min="0" max="100" value="50" step="1">
+                <span class="control-value" id="maskEdgeValue">50</span>
+            </div>
+
+            <div class="button-group" style="margin-top: 15px;">
+                <button class="button secondary" id="maskInvertBtn">반전</button>
+            </div>
+        </div>
+
+        <!-- Animation Control -->
+        <div class="control-section">
+            <h3>▶️ 애니메이션</h3>
+            <div class="button-group">
+                <button class="button primary" id="playBtn">재생</button>
+                <button class="button secondary" id="pauseBtn">일시정지</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Library Section -->
+    <div class="library-section">
+        <h3 style="color: #667eea; margin-bottom: 10px;">📚 라이브러리</h3>
+        <button class="button secondary" id="saveToLibraryBtn">현재 이미지 저장</button>
+        <div class="library-items" id="libraryItems"></div>
+    </div>
+
+    <!-- Transformers.js -->
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+        // GPU 가속 활성화
+        env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 4;
+        env.backends.onnx.wasm.simd = true;
+
+        class DepthEstimationApp {
+            constructor() {
+                this.depthEstimator = null;
+                this.currentImage = null;
+                this.currentDepthData = null;
+                this.animationFrame = null;
+                this.isPlaying = false;
+                this.hueOffset = 0;
+
+                // Settings
+                this.settings = {
+                    hueSpeed: 5,
+                    density: 0,
+                    colors: ['#000080', '#0000ff', '#00ff00', '#ffff00', '#ff0000'],
+                    maskingEnabled: false,
+                    maskStart: 0,
+                    maskRange: 128,
+                    maskEdge: 50,
+                    maskInvert: false
+                };
+
+                this.init();
+            }
+
+            async init() {
+                await this.loadModel();
+                this.setupEventListeners();
+                this.loadLibrary();
+                this.updateStatus('준비 완료', true);
+            }
+
+            async loadModel() {
+                try {
+                    this.updateStatus('AI 모델 로딩 중...');
+
+                    // Depth estimation model
+                    this.depthEstimator = await pipeline(
+                        'depth-estimation',
+                        'Xenova/depth-anything-v2-small-hf',
+                        {
+                            device: 'webgpu', // Try WebGPU first
+                            dtype: 'fp16'
+                        }
+                    ).catch(async () => {
+                        // Fallback to WebGL
+                        return await pipeline(
+                            'depth-estimation',
+                            'Xenova/depth-anything-v2-small-hf',
+                            {
+                                device: 'wasm',
+                                dtype: 'fp32'
+                            }
+                        );
+                    });
+
+                    console.log('Depth estimation model loaded');
+                } catch (error) {
+                    console.error('Model loading error:', error);
+                    this.updateStatus('모델 로딩 실패: ' + error.message);
+                }
+            }
+
+            setupEventListeners() {
+                // Camera button
+                document.getElementById('cameraBtn').addEventListener('click', () => {
+                    this.captureFromCamera();
+                });
+
+                // File button
+                document.getElementById('fileBtn').addEventListener('click', () => {
+                    document.getElementById('fileInput').click();
+                });
+
+                document.getElementById('fileInput').addEventListener('change', (e) => {
+                    if (e.target.files[0]) {
+                        this.loadImageFromFile(e.target.files[0]);
+                    }
+                });
+
+                // Sliders
+                document.getElementById('hueSpeedSlider').addEventListener('input', (e) => {
+                    this.settings.hueSpeed = parseInt(e.target.value);
+                    document.getElementById('hueSpeedValue').textContent = e.target.value;
+                });
+
+                document.getElementById('densitySlider').addEventListener('input', (e) => {
+                    this.settings.density = parseInt(e.target.value);
+                    document.getElementById('densityValue').textContent = e.target.value;
+                    this.renderCurrentFrame();
+                });
+
+                // Color pickers
+                for (let i = 1; i <= 5; i++) {
+                    document.getElementById(`color${i}`).addEventListener('input', (e) => {
+                        this.settings.colors[i-1] = e.target.value;
+                        this.renderCurrentFrame();
+                    });
+                }
+
+                // Masking controls
+                document.getElementById('maskingToggle').addEventListener('change', (e) => {
+                    this.settings.maskingEnabled = e.target.checked;
+                    this.renderCurrentFrame();
+                });
+
+                document.getElementById('maskStartSlider').addEventListener('input', (e) => {
+                    this.settings.maskStart = parseInt(e.target.value);
+                    document.getElementById('maskStartValue').textContent = e.target.value;
+                    this.renderCurrentFrame();
+                });
+
+                document.getElementById('maskRangeSlider').addEventListener('input', (e) => {
+                    this.settings.maskRange = parseInt(e.target.value);
+                    document.getElementById('maskRangeValue').textContent = e.target.value;
+                    this.renderCurrentFrame();
+                });
+
+                document.getElementById('maskEdgeSlider').addEventListener('input', (e) => {
+                    this.settings.maskEdge = parseInt(e.target.value);
+                    document.getElementById('maskEdgeValue').textContent = e.target.value;
+                    this.renderCurrentFrame();
+                });
+
+                document.getElementById('maskInvertBtn').addEventListener('click', () => {
+                    this.settings.maskInvert = !this.settings.maskInvert;
+                    document.getElementById('maskInvertBtn').classList.toggle('active');
+                    this.renderCurrentFrame();
+                });
+
+                // Animation controls
+                document.getElementById('playBtn').addEventListener('click', () => {
+                    this.startAnimation();
+                });
+
+                document.getElementById('pauseBtn').addEventListener('click', () => {
+                    this.stopAnimation();
+                });
+
+                // Fullscreen
+                document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                    this.toggleFullscreen();
+                });
+
+                document.getElementById('canvasContainer').addEventListener('click', (e) => {
+                    if (e.target === document.getElementById('canvasContainer') &&
+                        document.getElementById('canvasContainer').classList.contains('fullscreen')) {
+                        this.toggleFullscreen();
+                    }
+                });
+
+                // Library
+                document.getElementById('saveToLibraryBtn').addEventListener('click', () => {
+                    this.saveToLibrary();
+                });
+            }
+
+            async captureFromCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+
+                    const video = document.getElementById('videoElement');
+                    video.srcObject = stream;
+                    await video.play();
+
+                    // Capture frame
+                    const canvas = document.getElementById('sourceCanvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0);
+
+                    // Stop stream
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // Process captured image
+                    const imageData = canvas.toDataURL('image/png');
+                    await this.processImage(imageData);
+
+                } catch (error) {
+                    alert('카메라 접근 실패: ' + error.message);
+                    console.error(error);
+                }
+            }
+
+            async loadImageFromFile(file) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    await this.processImage(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+
+            async processImage(imageSrc) {
+                if (!this.depthEstimator) {
+                    alert('모델이 아직 로딩 중입니다.');
+                    return;
+                }
+
+                this.showLoading(true);
+                this.updateStatus('Depth 추정 중...');
+
+                try {
+                    // Load image
+                    const img = new Image();
+                    await new Promise((resolve) => {
+                        img.onload = resolve;
+                        img.src = imageSrc;
+                    });
+
+                    this.currentImage = img;
+
+                    // Estimate depth
+                    const output = await this.depthEstimator(img);
+
+                    // Convert to canvas
+                    const depthCanvas = document.getElementById('depthCanvas');
+                    const tensor = output.depth;
+
+                    // Get dimensions
+                    const height = tensor.dims[0];
+                    const width = tensor.dims[1];
+
+                    depthCanvas.width = width;
+                    depthCanvas.height = height;
+
+                    const ctx = depthCanvas.getContext('2d');
+                    const imageData = ctx.createImageData(width, height);
+                    const data = tensor.data;
+
+                    // Find min/max for normalization
+                    let min = Infinity, max = -Infinity;
+                    for (let i = 0; i < data.length; i++) {
+                        if (data[i] < min) min = data[i];
+                        if (data[i] > max) max = data[i];
+                    }
+
+                    // Normalize to 0-255 (grayscale depth map)
+                    this.currentDepthData = new Uint8Array(data.length);
+                    for (let i = 0; i < data.length; i++) {
+                        this.currentDepthData[i] = ((data[i] - min) / (max - min)) * 255;
+                    }
+
+                    this.updateStatus('처리 완료', true);
+                    this.renderCurrentFrame();
+                    this.showLoading(false);
+
+                } catch (error) {
+                    console.error('Processing error:', error);
+                    this.updateStatus('처리 실패: ' + error.message);
+                    this.showLoading(false);
+                }
+            }
+
+            renderCurrentFrame() {
+                if (!this.currentDepthData) return;
+
+                const depthCanvas = document.getElementById('depthCanvas');
+                const displayCanvas = document.getElementById('displayCanvas');
+
+                displayCanvas.width = depthCanvas.width;
+                displayCanvas.height = depthCanvas.height;
+
+                const ctx = displayCanvas.getContext('2d', { willReadFrequently: true });
+                const imageData = ctx.createImageData(displayCanvas.width, displayCanvas.height);
+                const pixels = imageData.data;
+
+                const width = displayCanvas.width;
+                const height = displayCanvas.height;
+
+                // Apply gradient with HSB hue rotation
+                for (let i = 0; i < this.currentDepthData.length; i++) {
+                    const depthValue = this.currentDepthData[i];
+                    const pixelIndex = i * 4;
+
+                    // Apply masking
+                    let masked = false;
+                    if (this.settings.maskingEnabled) {
+                        const maskStart = this.settings.maskStart;
+                        const maskEnd = maskStart + this.settings.maskRange;
+                        const edgeSoftness = this.settings.maskEdge / 100;
+
+                        let alpha = 1;
+                        if (depthValue >= maskStart && depthValue <= maskEnd) {
+                            // Inside mask range
+                            const distFromStart = depthValue - maskStart;
+                            const distFromEnd = maskEnd - depthValue;
+                            const minDist = Math.min(distFromStart, distFromEnd);
+                            const edgeWidth = this.settings.maskRange * edgeSoftness;
+
+                            if (minDist < edgeWidth) {
+                                alpha = minDist / edgeWidth;
+                            } else {
+                                alpha = 0;
+                            }
+
+                            if (this.settings.maskInvert) {
+                                alpha = 1 - alpha;
+                            }
+                        } else {
+                            alpha = this.settings.maskInvert ? 1 : 0;
+                        }
+
+                        if (alpha === 0) {
+                            masked = true;
+                        } else if (alpha < 1) {
+                            // Partial masking (edge)
+                            const rgb = this.getGradientColor(depthValue);
+                            pixels[pixelIndex] = rgb.r * alpha;
+                            pixels[pixelIndex + 1] = rgb.g * alpha;
+                            pixels[pixelIndex + 2] = rgb.b * alpha;
+                            pixels[pixelIndex + 3] = 255;
+                            continue;
+                        }
+                    }
+
+                    if (masked) {
+                        pixels[pixelIndex] = 0;
+                        pixels[pixelIndex + 1] = 0;
+                        pixels[pixelIndex + 2] = 0;
+                        pixels[pixelIndex + 3] = 255;
+                    } else {
+                        // Apply gradient color
+                        const rgb = this.getGradientColor(depthValue);
+                        pixels[pixelIndex] = rgb.r;
+                        pixels[pixelIndex + 1] = rgb.g;
+                        pixels[pixelIndex + 2] = rgb.b;
+                        pixels[pixelIndex + 3] = 255;
+                    }
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            getGradientColor(depthValue) {
+                // Normalize depth value with density adjustment
+                let normalizedDepth = (depthValue / 255) * (1 + this.settings.density / 30);
+                normalizedDepth = Math.max(0, Math.min(1, normalizedDepth));
+
+                // Map to gradient stops
+                const numColors = this.settings.colors.length;
+                const scaledValue = normalizedDepth * (numColors - 1);
+                const index = Math.floor(scaledValue);
+                const fraction = scaledValue - index;
+
+                const color1 = this.hexToRgb(this.settings.colors[Math.min(index, numColors - 1)]);
+                const color2 = this.hexToRgb(this.settings.colors[Math.min(index + 1, numColors - 1)]);
+
+                // Interpolate
+                let r = color1.r + (color2.r - color1.r) * fraction;
+                let g = color1.g + (color2.g - color1.g) * fraction;
+                let b = color1.b + (color2.b - color1.b) * fraction;
+
+                // Apply hue rotation
+                const hsb = this.rgbToHsb(r, g, b);
+                hsb.h = (hsb.h + this.hueOffset) % 360;
+                const rgb = this.hsbToRgb(hsb.h, hsb.s, hsb.b);
+
+                return rgb;
+            }
+
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : { r: 0, g: 0, b: 0 };
+            }
+
+            rgbToHsb(r, g, b) {
+                r /= 255;
+                g /= 255;
+                b /= 255;
+
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const delta = max - min;
+
+                let h = 0;
+                if (delta !== 0) {
+                    if (max === r) {
+                        h = ((g - b) / delta) % 6;
+                    } else if (max === g) {
+                        h = (b - r) / delta + 2;
+                    } else {
+                        h = (r - g) / delta + 4;
+                    }
+                    h *= 60;
+                    if (h < 0) h += 360;
+                }
+
+                const s = max === 0 ? 0 : delta / max;
+                const v = max;
+
+                return { h, s, b: v };
+            }
+
+            hsbToRgb(h, s, b) {
+                const c = b * s;
+                const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+                const m = b - c;
+
+                let r, g, b_;
+                if (h < 60) {
+                    [r, g, b_] = [c, x, 0];
+                } else if (h < 120) {
+                    [r, g, b_] = [x, c, 0];
+                } else if (h < 180) {
+                    [r, g, b_] = [0, c, x];
+                } else if (h < 240) {
+                    [r, g, b_] = [0, x, c];
+                } else if (h < 300) {
+                    [r, g, b_] = [x, 0, c];
+                } else {
+                    [r, g, b_] = [c, 0, x];
+                }
+
+                return {
+                    r: Math.round((r + m) * 255),
+                    g: Math.round((g + m) * 255),
+                    b: Math.round((b_ + m) * 255)
+                };
+            }
+
+            startAnimation() {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+
+                const animate = () => {
+                    if (!this.isPlaying) return;
+
+                    // Update hue offset based on speed (frames per rotation)
+                    this.hueOffset += this.settings.hueSpeed / 10;
+                    if (this.hueOffset >= 360) this.hueOffset -= 360;
+                    if (this.hueOffset < 0) this.hueOffset += 360;
+
+                    this.renderCurrentFrame();
+                    this.animationFrame = requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+
+            stopAnimation() {
+                this.isPlaying = false;
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                }
+            }
+
+            toggleFullscreen() {
+                const container = document.getElementById('canvasContainer');
+                container.classList.toggle('fullscreen');
+            }
+
+            async saveToLibrary() {
+                if (!this.currentImage || !this.currentDepthData) {
+                    alert('저장할 이미지가 없습니다.');
+                    return;
+                }
+
+                try {
+                    // Get OPFS root
+                    const root = await navigator.storage.getDirectory();
+                    const libraryDir = await root.getDirectoryHandle('library', { create: true });
+
+                    // Save image and settings
+                    const timestamp = Date.now();
+                    const canvas = document.getElementById('displayCanvas');
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+                    const fileHandle = await libraryDir.getFileHandle(`depth_${timestamp}.png`, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+
+                    // Save settings
+                    const settingsHandle = await libraryDir.getFileHandle(`depth_${timestamp}.json`, { create: true });
+                    const settingsWritable = await settingsHandle.createWritable();
+                    await settingsWritable.write(JSON.stringify({
+                        settings: this.settings,
+                        timestamp
+                    }));
+                    await settingsWritable.close();
+
+                    // Also save original depth data
+                    const depthHandle = await libraryDir.getFileHandle(`depth_${timestamp}.depth`, { create: true });
+                    const depthWritable = await depthHandle.createWritable();
+                    await depthWritable.write(this.currentDepthData);
+                    await depthWritable.close();
+
+                    alert('라이브러리에 저장되었습니다!');
+                    this.loadLibrary();
+
+                } catch (error) {
+                    console.error('Save error:', error);
+                    alert('저장 실패: ' + error.message);
+                }
+            }
+
+            async loadLibrary() {
+                try {
+                    const root = await navigator.storage.getDirectory();
+                    const libraryDir = await root.getDirectoryHandle('library', { create: true });
+
+                    const items = [];
+                    for await (const entry of libraryDir.values()) {
+                        if (entry.kind === 'file' && entry.name.endsWith('.png')) {
+                            items.push(entry);
+                        }
+                    }
+
+                    // Sort by name (timestamp)
+                    items.sort((a, b) => b.name.localeCompare(a.name));
+
+                    // Display items
+                    const container = document.getElementById('libraryItems');
+                    container.innerHTML = '';
+
+                    for (const item of items) {
+                        const file = await item.getFile();
+                        const url = URL.createObjectURL(file);
+                        const timestamp = item.name.match(/depth_(\d+)\.png/)[1];
+
+                        const div = document.createElement('div');
+                        div.className = 'library-item';
+                        div.innerHTML = `
+                            <img src="${url}" alt="Depth ${timestamp}">
+                            <button class="delete-btn">×</button>
+                        `;
+
+                        div.querySelector('img').addEventListener('click', async () => {
+                            await this.loadFromLibrary(timestamp);
+                        });
+
+                        div.querySelector('.delete-btn').addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            await this.deleteFromLibrary(timestamp);
+                        });
+
+                        container.appendChild(div);
+                    }
+
+                } catch (error) {
+                    console.error('Load library error:', error);
+                }
+            }
+
+            async loadFromLibrary(timestamp) {
+                try {
+                    const root = await navigator.storage.getDirectory();
+                    const libraryDir = await root.getDirectoryHandle('library');
+
+                    // Load settings
+                    const settingsHandle = await libraryDir.getFileHandle(`depth_${timestamp}.json`);
+                    const settingsFile = await settingsHandle.getFile();
+                    const settingsText = await settingsFile.text();
+                    const savedData = JSON.parse(settingsText);
+
+                    // Load depth data
+                    const depthHandle = await libraryDir.getFileHandle(`depth_${timestamp}.depth`);
+                    const depthFile = await depthHandle.getFile();
+                    const depthBuffer = await depthFile.arrayBuffer();
+                    this.currentDepthData = new Uint8Array(depthBuffer);
+
+                    // Load image
+                    const imageHandle = await libraryDir.getFileHandle(`depth_${timestamp}.png`);
+                    const imageFile = await imageHandle.getFile();
+                    const imageUrl = URL.createObjectURL(imageFile);
+
+                    const img = new Image();
+                    await new Promise(resolve => {
+                        img.onload = resolve;
+                        img.src = imageUrl;
+                    });
+                    this.currentImage = img;
+
+                    // Apply settings
+                    this.settings = savedData.settings;
+                    this.updateUIFromSettings();
+                    this.renderCurrentFrame();
+
+                    this.updateStatus('라이브러리에서 로드됨', true);
+
+                } catch (error) {
+                    console.error('Load from library error:', error);
+                    alert('로드 실패: ' + error.message);
+                }
+            }
+
+            async deleteFromLibrary(timestamp) {
+                if (!confirm('이 항목을 삭제하시겠습니까?')) return;
+
+                try {
+                    const root = await navigator.storage.getDirectory();
+                    const libraryDir = await root.getDirectoryHandle('library');
+
+                    await libraryDir.removeEntry(`depth_${timestamp}.png`);
+                    await libraryDir.removeEntry(`depth_${timestamp}.json`);
+                    await libraryDir.removeEntry(`depth_${timestamp}.depth`);
+
+                    this.loadLibrary();
+                } catch (error) {
+                    console.error('Delete error:', error);
+                }
+            }
+
+            updateUIFromSettings() {
+                document.getElementById('hueSpeedSlider').value = this.settings.hueSpeed;
+                document.getElementById('hueSpeedValue').textContent = this.settings.hueSpeed;
+
+                document.getElementById('densitySlider').value = this.settings.density;
+                document.getElementById('densityValue').textContent = this.settings.density;
+
+                for (let i = 0; i < 5; i++) {
+                    document.getElementById(`color${i+1}`).value = this.settings.colors[i];
+                }
+
+                document.getElementById('maskingToggle').checked = this.settings.maskingEnabled;
+                document.getElementById('maskStartSlider').value = this.settings.maskStart;
+                document.getElementById('maskStartValue').textContent = this.settings.maskStart;
+                document.getElementById('maskRangeSlider').value = this.settings.maskRange;
+                document.getElementById('maskRangeValue').textContent = this.settings.maskRange;
+                document.getElementById('maskEdgeSlider').value = this.settings.maskEdge;
+                document.getElementById('maskEdgeValue').textContent = this.settings.maskEdge;
+            }
+
+            showLoading(show) {
+                document.getElementById('loadingOverlay').classList.toggle('active', show);
+            }
+
+            updateStatus(message, ready = false) {
+                const statusBar = document.getElementById('statusBar');
+                statusBar.textContent = message;
+                statusBar.classList.toggle('ready', ready);
+            }
+        }
+
+        // Initialize app
+        window.addEventListener('DOMContentLoaded', () => {
+            window.depthApp = new DepthEstimationApp();
+        });
+    </script>
+</body>
+</html>
