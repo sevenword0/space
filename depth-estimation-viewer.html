@@ -534,9 +534,29 @@
     <script type="module">
         import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 
+        // Configuration for local models
+        // 로컬 모델 사용 시 이 값을 변경하세요
+        const USE_LOCAL_MODELS = false;
+        const LOCAL_MODELS_PATH = '/models/'; // HTTP 서버의 루트 기준 경로
+
         // GPU 가속 활성화
         env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 4;
         env.backends.onnx.wasm.simd = true;
+
+        // Check if running on file:// protocol
+        const isFileProtocol = window.location.protocol === 'file:';
+        const isHTTPS = window.location.protocol === 'https:';
+
+        if (USE_LOCAL_MODELS && LOCAL_MODELS_PATH.startsWith('file://')) {
+            console.error('⚠️ file:// 경로는 CORS 제한으로 사용할 수 없습니다. HTTP 서버를 실행해주세요.');
+        }
+
+        // Set local model path if enabled
+        if (USE_LOCAL_MODELS && !isFileProtocol) {
+            env.localModelPath = LOCAL_MODELS_PATH;
+            env.allowRemoteModels = false;
+            env.allowLocalModels = true;
+        }
 
         class DepthEstimationApp {
             constructor() {
@@ -563,40 +583,95 @@
             }
 
             async init() {
+                // Check protocol and show warnings
+                this.checkEnvironment();
                 await this.loadModel();
                 this.setupEventListeners();
-                this.loadLibrary();
-                this.updateStatus('준비 완료', true);
+                await this.loadLibrary();
+                if (this.depthEstimator) {
+                    this.updateStatus('✅ 준비 완료', true);
+                }
+            }
+
+            checkEnvironment() {
+                if (isFileProtocol) {
+                    this.updateStatus('⚠️ file:// 프로토콜로 실행 중 - HTTP 서버 필요', false);
+                    alert('⚠️ 중요: file:// 프로토콜로는 일부 기능이 작동하지 않습니다.\n\n해결 방법:\n1. Python: python -m http.server 8000\n2. Node.js: npx http-server -p 8000\n\n그런 다음 http://localhost:8000 에서 열어주세요.');
+                } else if (!isHTTPS && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    console.warn('⚠️ HTTPS가 아닌 환경에서는 카메라 접근이 제한될 수 있습니다.');
+                }
             }
 
             async loadModel() {
                 try {
-                    this.updateStatus('AI 모델 로딩 중...');
+                    this.updateStatus('🤖 AI 모델 로딩 중... (최초 실행 시 다운로드됨)');
 
-                    // Depth estimation model
-                    this.depthEstimator = await pipeline(
-                        'depth-estimation',
-                        'Xenova/depth-anything-v2-small-hf',
-                        {
-                            device: 'webgpu', // Try WebGPU first
-                            dtype: 'fp16'
-                        }
-                    ).catch(async () => {
-                        // Fallback to WebGL
-                        return await pipeline(
+                    // Use smaller model for better compatibility
+                    const modelName = 'Xenova/depth-anything-v2-small-hf';
+
+                    console.log('Loading model:', modelName);
+                    console.log('Local models:', USE_LOCAL_MODELS);
+                    console.log('Environment:', env);
+
+                    // Try WebGPU first, then fallback
+                    try {
+                        this.updateStatus('🚀 GPU 가속 시도 중 (WebGPU)...');
+                        this.depthEstimator = await pipeline(
                             'depth-estimation',
-                            'Xenova/depth-anything-v2-small-hf',
+                            modelName,
                             {
-                                device: 'wasm',
-                                dtype: 'fp32'
+                                device: 'webgpu',
+                                dtype: 'fp16',
+                                progress_callback: (progress) => {
+                                    if (progress.status === 'downloading') {
+                                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                                        this.updateStatus(`📥 다운로드 중: ${progress.file} (${percent}%)`);
+                                    }
+                                }
                             }
                         );
-                    });
+                        console.log('✅ WebGPU acceleration enabled');
+                        this.updateStatus('✅ GPU 가속 활성화 (WebGPU)');
+                    } catch (gpuError) {
+                        console.warn('WebGPU failed, trying WASM:', gpuError);
+                        this.updateStatus('⚠️ GPU 가속 실패, WASM으로 폴백 중...');
 
-                    console.log('Depth estimation model loaded');
+                        this.depthEstimator = await pipeline(
+                            'depth-estimation',
+                            modelName,
+                            {
+                                device: 'wasm',
+                                dtype: 'fp32',
+                                progress_callback: (progress) => {
+                                    if (progress.status === 'downloading') {
+                                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                                        this.updateStatus(`📥 다운로드 중: ${progress.file} (${percent}%)`);
+                                    }
+                                }
+                            }
+                        );
+                        console.log('✅ WASM fallback enabled');
+                        this.updateStatus('✅ WASM 모드로 로드됨');
+                    }
+
+                    console.log('✅ Depth estimation model loaded successfully');
+                    return true;
+
                 } catch (error) {
-                    console.error('Model loading error:', error);
-                    this.updateStatus('모델 로딩 실패: ' + error.message);
+                    console.error('❌ Model loading error:', error);
+
+                    let errorMsg = '모델 로딩 실패: ';
+                    if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                        errorMsg += 'HuggingFace 접근 제한. 나중에 다시 시도하거나 로컬 모델을 사용하세요.';
+                    } else if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                        errorMsg += 'CORS 오류. HTTP 서버에서 실행해주세요.';
+                    } else {
+                        errorMsg += error.message;
+                    }
+
+                    this.updateStatus(errorMsg);
+                    alert('⚠️ ' + errorMsg + '\n\n문제 해결:\n1. HTTP 서버에서 실행\n2. 인터넷 연결 확인\n3. 나중에 다시 시도\n\n로컬 모델 사용 방법은 README를 참조하세요.');
+                    return false;
                 }
             }
 
@@ -1005,6 +1080,18 @@
                     return;
                 }
 
+                // Check if OPFS is available
+                if (!navigator.storage || !navigator.storage.getDirectory) {
+                    alert('⚠️ OPFS를 사용할 수 없습니다.\n\nfile:// 프로토콜에서는 저장 기능이 제한됩니다.\nHTTP 서버에서 실행해주세요.');
+                    return;
+                }
+
+                if (isFileProtocol) {
+                    alert('⚠️ file:// 프로토콜에서는 저장할 수 없습니다.\n\nHTTP 서버에서 실행하거나,\n다운로드 버튼으로 이미지를 저장하세요.');
+                    this.downloadCurrentImage();
+                    return;
+                }
+
                 try {
                     // Get OPFS root
                     const root = await navigator.storage.getDirectory();
@@ -1036,15 +1123,47 @@
                     await depthWritable.close();
 
                     alert('라이브러리에 저장되었습니다!');
-                    this.loadLibrary();
+                    await this.loadLibrary();
 
                 } catch (error) {
                     console.error('Save error:', error);
-                    alert('저장 실패: ' + error.message);
+                    if (error.name === 'SecurityError') {
+                        alert('⚠️ 보안 오류: OPFS 접근 실패\n\nfile:// 프로토콜에서는 저장할 수 없습니다.\nHTTP 서버에서 실행해주세요.\n\n대신 다운로드로 저장합니다.');
+                        this.downloadCurrentImage();
+                    } else {
+                        alert('저장 실패: ' + error.message);
+                    }
                 }
             }
 
+            downloadCurrentImage() {
+                const canvas = document.getElementById('displayCanvas');
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `depth_${Date.now()}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            }
+
             async loadLibrary() {
+                // Check if OPFS is available
+                if (!navigator.storage || !navigator.storage.getDirectory) {
+                    console.warn('OPFS not available');
+                    return;
+                }
+
+                if (isFileProtocol) {
+                    console.warn('OPFS not available in file:// protocol');
+                    const container = document.getElementById('libraryItems');
+                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #aaa; font-size: 14px;">file:// 프로토콜에서는<br>라이브러리를 사용할 수 없습니다</div>';
+                    return;
+                }
+
                 try {
                     const root = await navigator.storage.getDirectory();
                     const libraryDir = await root.getDirectoryHandle('library', { create: true });
@@ -1062,6 +1181,11 @@
                     // Display items
                     const container = document.getElementById('libraryItems');
                     container.innerHTML = '';
+
+                    if (items.length === 0) {
+                        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #aaa; font-size: 14px;">저장된 이미지가 없습니다</div>';
+                        return;
+                    }
 
                     for (const item of items) {
                         const file = await item.getFile();
@@ -1088,7 +1212,13 @@
                     }
 
                 } catch (error) {
-                    console.error('Load library error:', error);
+                    if (error.name === 'SecurityError') {
+                        console.warn('OPFS SecurityError - likely running on file:// protocol');
+                        const container = document.getElementById('libraryItems');
+                        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #aaa; font-size: 14px;">HTTP 서버에서 실행하면<br>라이브러리를 사용할 수 있습니다</div>';
+                    } else {
+                        console.error('Load library error:', error);
+                    }
                 }
             }
 
